@@ -1,163 +1,252 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { submitIssue } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { PlusCircle } from "lucide-react"
 
-type IssueData = {
-  issueTitle: string
-  timeIssued: string
-  description: string
-  solution: string
-  timeStart: string
-  timeFinish: string
+type IssueType = {
+  id: number
+  type_name: string
 }
 
 export default function IssueForm() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submittedData, setSubmittedData] = useState<IssueData | null>(null)
+  const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
+  const [isLoadingTypes, setIsLoadingTypes] = useState(true)
+  const [newTypeName, setNewTypeName] = useState("")
+  const [isAddingType, setIsAddingType] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setIsSubmitting(true)
+  // Fetch issue types on component mount
+  useEffect(() => {
+    fetchIssueTypes()
+  }, [])
 
-    // Get form data
-    const formData = new FormData(e.currentTarget)
-    const issueData: IssueData = {
-      issueTitle: formData.get("issueTitle") as string,
-      timeIssued: formData.get("timeIssued") as string,
-      description: formData.get("description") as string,
-      solution: formData.get("solution") as string,
-      timeStart: formData.get("timeStart") as string,
-      timeFinish: formData.get("timeFinish") as string,
+  async function fetchIssueTypes() {
+    try {
+      setIsLoadingTypes(true)
+      const response = await fetch("/api/issue-types")
+      const data = await response.json()
+
+      if (data.types) {
+        setIssueTypes(data.types)
+      }
+    } catch (error) {
+      console.error("Failed to fetch issue types:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load issue types",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingTypes(false)
+    }
+  }
+
+  async function handleAddType() {
+    if (!newTypeName.trim()) {
+      toast({
+        title: "Error",
+        description: "Type name cannot be empty",
+        variant: "destructive",
+      })
+      return
     }
 
-    // Simulate form submission
-    setTimeout(() => {
-      console.log("Form submitted with data:", issueData)
-      setSubmittedData(issueData)
+    try {
+      setIsAddingType(true)
+      const response = await fetch("/api/issue-types", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ typeName: newTypeName }),
+      })
 
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Success",
+          description: "New issue type added",
+        })
+        setNewTypeName("")
+        setDialogOpen(false)
+        await fetchIssueTypes()
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to add issue type",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to add issue type:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add issue type",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAddingType(false)
+    }
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setIsSubmitting(true)
+    try {
+      await submitIssue(formData)
       toast({
         title: "Success",
         description: "Issue has been submitted successfully",
       })
-
       // Reset the form
-      e.currentTarget.reset()
+      const form = document.getElementById("issueForm") as HTMLFormElement
+      form.reset()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit issue. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Error submitting issue:", error)
+    } finally {
       setIsSubmitting(false)
-    }, 1000)
+    }
   }
 
   return (
-    <div className="space-y-8">
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>Submit Issue</CardTitle>
-        </CardHeader>
-        <form id="issueForm" onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="issueTitle">Issue Title</Label>
-              <Input id="issueTitle" name="issueTitle" placeholder="Brief description of the issue" required />
-            </div>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Submit Issue</CardTitle>
+      </CardHeader>
+      <form id="issueForm" action={handleSubmit}>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="issueTitle">Issue Title</Label>
+            <Input id="issueTitle" name="issueTitle" placeholder="Brief description of the issue" required />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="timeIssued">Time Issued</Label>
-              <Input id="timeIssued" name="timeIssued" type="datetime-local" required />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Describe Issue</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Detailed description of the issue"
-                className="min-h-[100px]"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="solution">Solution</Label>
-              <Textarea
-                id="solution"
-                name="solution"
-                placeholder="How was the issue resolved?"
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="timeStart">Time Start</Label>
-                <Input id="timeStart" name="timeStart" type="datetime-local" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timeFinish">Time Finish</Label>
-                <Input id="timeFinish" name="timeFinish" type="datetime-local" />
-              </div>
-            </div>
-          </CardContent>
-
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Issue"}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-
-      {submittedData && (
-        <Card className="w-full max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Last Submitted Issue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium">Issue Title</h3>
-                <p>{submittedData.issueTitle}</p>
-              </div>
-              <div>
-                <h3 className="font-medium">Time Issued</h3>
-                <p>{submittedData.timeIssued}</p>
-              </div>
-              <div>
-                <h3 className="font-medium">Description</h3>
-                <p>{submittedData.description}</p>
-              </div>
-              {submittedData.solution && (
-                <div>
-                  <h3 className="font-medium">Solution</h3>
-                  <p>{submittedData.solution}</p>
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {submittedData.timeStart && (
-                  <div>
-                    <h3 className="font-medium">Time Start</h3>
-                    <p>{submittedData.timeStart}</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="issueType">Issue Type</Label>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1">
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span>Add Type</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Issue Type</DialogTitle>
+                    <DialogDescription>Create a new issue type to categorize your issues.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newTypeName">Type Name</Label>
+                      <Input
+                        id="newTypeName"
+                        value={newTypeName}
+                        onChange={(e) => setNewTypeName(e.target.value)}
+                        placeholder="Enter new issue type"
+                      />
+                    </div>
                   </div>
-                )}
-                {submittedData.timeFinish && (
-                  <div>
-                    <h3 className="font-medium">Time Finish</h3>
-                    <p>{submittedData.timeFinish}</p>
-                  </div>
-                )}
-              </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddType} disabled={isAddingType || !newTypeName.trim()}>
+                      {isAddingType ? "Adding..." : "Add Type"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            <Select name="issueTypeId">
+              <SelectTrigger>
+                <SelectValue placeholder="Select issue type" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingTypes ? (
+                  <SelectItem value="loading" disabled>
+                    Loading issue types...
+                  </SelectItem>
+                ) : issueTypes.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No issue types available
+                  </SelectItem>
+                ) : (
+                  issueTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.type_name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timeIssued">Time Issued</Label>
+            <Input id="timeIssued" name="timeIssued" type="datetime-local" required />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Describe Issue</Label>
+            <Textarea
+              id="description"
+              name="description"
+              placeholder="Detailed description of the issue"
+              className="min-h-[100px]"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="solution">Solution</Label>
+            <Textarea
+              id="solution"
+              name="solution"
+              placeholder="How was the issue resolved?"
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="timeStart">Time Start</Label>
+              <Input id="timeStart" name="timeStart" type="datetime-local" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timeFinish">Time Finish</Label>
+              <Input id="timeFinish" name="timeFinish" type="datetime-local" />
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit Issue"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   )
 }

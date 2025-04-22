@@ -4,6 +4,7 @@ import { createConnection } from "@/lib/db"
 
 export async function submitIssue(formData: FormData) {
   const issueTitle = formData.get("issueTitle") as string
+  const issueTypeId = formData.get("issueTypeId") as string
   const timeIssued = formData.get("timeIssued") as string
   const description = formData.get("description") as string
   const solution = formData.get("solution") as string
@@ -21,14 +22,15 @@ export async function submitIssue(formData: FormData) {
     // Insert the issue into the database
     const [result] = await connection.execute(
       `INSERT INTO issues (
-        issue_title, 
+        issue_title,
+        issue_type_id, 
         time_issued, 
         description, 
         solution, 
         time_start, 
         time_finish
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [issueTitle, timeIssued, description, solution, timeStart, timeFinish],
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [issueTitle, issueTypeId || null, timeIssued, description, solution, timeStart, timeFinish],
     )
 
     await connection.end()
