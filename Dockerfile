@@ -1,30 +1,39 @@
-# Use Node.js LTS as the base image
-FROM node:20-alpine
-
-# Set working directory
+# Stage 1: Generate package-lock.json if it doesn't exist
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package.json package-lock.json* ./
+# Copy package.json and package-lock.json if exists
+COPY package.json ./
+#COPY package-lock.json .  # Optional: only if it already exists
 
-# Install dependencies
-RUN npm ci
+# Generate or update package-lock.json with legacy-peer-deps to avoid peer conflict
+RUN npm install --package-lock-only --legacy-peer-deps
 
-# Copy the rest of the application
+# Stage 2: Install dependencies and build the app
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/package.json /app/package-lock.json ./
+
+# Install dependencies with legacy-peer-deps to avoid ERESOLVE errors
+RUN npm ci --legacy-peer-deps
+
 COPY . .
 
-# Build the Next.js application
 RUN npm run build
 
-# Expose the port the app will run on
+# Stage 3: Production image
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
 EXPOSE 3000
 
-# Set environment variables (these will be overridden by docker run command)
-ENV NODE_ENV=production
-ENV MYSQL_HOST=mysql-host
-ENV MYSQL_USER=mysql-user
-ENV MYSQL_PASSWORD=mysql-password
-ENV MYSQL_DATABASE=mysql-database
-
-# Start the application
 CMD ["npm", "start"]
+

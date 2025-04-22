@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  issue-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE} 
+    networks:
+      - server-network
+    restart: unless-stopped
+
+networks:
+  server-network:
+    external: true
