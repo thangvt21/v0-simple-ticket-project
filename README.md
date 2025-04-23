@@ -1,30 +1,128 @@
-# Simple form to MySQL
+# Issue Tracker
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A comprehensive issue tracking application built with Next.js, MySQL, and Docker.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/thangvt21s-projects/v0-simple-form-to-my-sql)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/TQ2J7V87eIL)
+## Features
 
-## Overview
+- **Authentication System**: User registration, login, and role-based access control
+- **Issue Management**: Create, view, edit, and delete issues
+- **User Management**: Admin interface for managing users
+- **Advanced Filtering**: Search and filter issues by various criteria
+- **Responsive Design**: Works on desktop and mobile devices
+- **Docker Integration**: Easy deployment with Docker and Docker Compose
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Tech Stack
 
-## Deployment
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: MySQL
+- **Authentication**: JWT (JSON Web Tokens)
+- **Containerization**: Docker, Docker Compose
 
-Your project is live at:
+## Getting Started
 
-**[https://vercel.com/thangvt21s-projects/v0-simple-form-to-my-sql](https://vercel.com/thangvt21s-projects/v0-simple-form-to-my-sql)**
+### Prerequisites
 
-## Build your app
+- Node.js 18+ (for local development)
+- Docker and Docker Compose (for containerized deployment)
+- MySQL (if running without Docker)
 
-Continue building your app on:
+### Installation
 
-**[https://v0.dev/chat/projects/TQ2J7V87eIL](https://v0.dev/chat/projects/TQ2J7V87eIL)**
+#### Using Docker (Recommended)
 
-## How It Works
+1. Clone the repository:
+   \`\`\`bash
+   git clone https://github.com/yourusername/issue-tracker.git
+   cd issue-tracker
+   \`\`\`
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+2. Create a `.env` file from the example:
+   \`\`\`bash
+   cp .env.example .env
+   \`\`\`
+
+3. Update the environment variables in the `.env` file with your preferred settings.
+
+4. Start the application with Docker Compose:
+   \`\`\`bash
+   docker-compose up -d
+   \`\`\`
+
+5. Access the application at http://localhost:3000
+
+#### Local Development
+
+1. Clone the repository:
+   \`\`\`bash
+   git clone https://github.com/yourusername/issue-tracker.git
+   cd issue-tracker
+   \`\`\`
+
+2. Install dependencies:
+   \`\`\`bash
+   npm install
+   \`\`\`
+
+3. Create a `.env` file from the example:
+   \`\`\`bash
+   cp .env.example .env
+   \`\`\`
+
+4. Update the environment variables in the `.env` file with your MySQL connection details.
+
+5. Set up the database:
+   \`\`\`bash
+   mysql -u yourusername -p yourdatabase < db-setup.sql
+   \`\`\`
+
+6. Start the development server:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+
+7. Access the application at http://localhost:3000
+
+## Environment Variables
+
+- `MYSQL_HOST`: MySQL host (default: "localhost")
+- `MYSQL_USER`: MySQL username
+- `MYSQL_PASSWORD`: MySQL password
+- `MYSQL_DATABASE`: MySQL database name
+- `JWT_SECRET`: Secret key for JWT token generation
+- `NEXT_PUBLIC_SITE_URL`: Public URL of the application (for SEO)
+
+## Docker Deployment
+
+### Production
+
+\`\`\`bash
+docker-compose up -d
+\`\`\`
+
+### Development
+
+\`\`\`bash
+docker-compose -f docker-compose.dev.yml up -d
+\`\`\`
+
+## Testing
+
+\`\`\`bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+\`\`\`
+
+## API Documentation
+
+See [API.md](API.md) for detailed API documentation.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

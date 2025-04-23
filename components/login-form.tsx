@@ -47,15 +47,29 @@ export default function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          aria-describedby={error ? "email-error" : undefined}
+          aria-invalid={error ? "true" : "false"}
         />
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
         </div>
-        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          aria-describedby={error ? "password-error" : undefined}
+          aria-invalid={error ? "true" : "false"}
+        />
       </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <p id="login-error" className="text-sm text-red-500" role="alert">
+          {error}
+        </p>
+      )}
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Logging in..." : "Login"}
       </Button>

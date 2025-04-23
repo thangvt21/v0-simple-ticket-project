@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mysql:
     image: mysql:8.0
-    container_name: issue-tracker-mysql
+    container_name: issue-tracker-mysql-dev
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
@@ -13,60 +13,47 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-data-dev:/var/lib/mysql
       - ./db-setup.sql:/docker-entrypoint-initdb.d/db-setup.sql
     networks:
-      - server-network
+      - server-network-dev
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
 
-  issue-tracker:
+  issue-tracker-dev:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    container_name: issue-tracker-app
+      dockerfile: Dockerfile.dev
+    container_name: issue-tracker-app-dev
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - MYSQL_HOST=mysql
       - MYSQL_USER=${MYSQL_USER:-issueuser}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:-issuepassword}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-issue_tracker}
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_key}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
     depends_on:
       mysql:
         condition: service_healthy
     networks:
-      - server-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
+      - server-network-dev
+    command: npm run dev
 
 volumes:
-  mysql-data:
+  mysql-data-dev:
     driver: local
 
 networks:
-  server-network:
+  server-network-dev:
     driver: bridge

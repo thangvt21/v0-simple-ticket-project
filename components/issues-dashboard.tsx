@@ -30,6 +30,8 @@ import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
 import EditIssueForm from "./edit-issue-form"
 import { useAuth } from "@/contexts/auth-context"
+import { ExportIssues } from "./export-issues"
+import { IssueTableSkeleton } from "./skeleton/issue-skeleton"
 
 type Issue = {
   id: number
@@ -177,6 +179,7 @@ export default function IssuesDashboard() {
     setEditDialogOpen(true)
   }
 
+  // Update the handleDeleteIssue function to use optimistic updates
   function handleDeleteIssue(issueId: number) {
     setIssueToDelete(issueId)
     setDeleteDialogOpen(true)
@@ -185,8 +188,15 @@ export default function IssuesDashboard() {
   async function confirmDeleteIssue() {
     if (!issueToDelete) return
 
+    // Optimistically update UI
+    const previousIssues = [...issues]
+
     try {
       setIsDeleting(true)
+
+      // Optimistically update UI
+      setIssues(issues.filter((issue) => issue.id !== issueToDelete))
+
       const response = await fetch(`/api/issues/${issueToDelete}`, {
         method: "DELETE",
       })
@@ -198,9 +208,10 @@ export default function IssuesDashboard() {
           title: "Success",
           description: "Issue deleted successfully",
         })
-        // Refresh issues list
-        fetchIssues(currentPage)
+        // No need to refresh since we already updated optimistically
       } else {
+        // Revert optimistic update on error
+        setIssues(previousIssues)
         toast({
           title: "Error",
           description: data.error || "Failed to delete issue",
@@ -208,6 +219,8 @@ export default function IssuesDashboard() {
         })
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setIssues(previousIssues)
       console.error("Failed to delete issue:", error)
       toast({
         title: "Error",
@@ -345,6 +358,10 @@ export default function IssuesDashboard() {
         )}
       </div>
 
+      <div className="flex justify-end mb-4">
+        <ExportIssues issues={issues} />
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -361,11 +378,7 @@ export default function IssuesDashboard() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-10">
-                  Loading issues...
-                </TableCell>
-              </TableRow>
+              <IssueTableSkeleton />
             ) : issues.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10">

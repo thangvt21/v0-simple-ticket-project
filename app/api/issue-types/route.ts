@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server"
-import { createConnection } from "@/lib/db"
+import { query } from "@/lib/db"
+
+// Cache issue types for 5 minutes
+let issueTypesCache: any[] | null = null
+let lastCacheTime = 0
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes in milliseconds
 
 export async function GET() {
   try {
-    const connection = await createConnection()
-    const [rows] = await connection.execute("SELECT * FROM issues_type ORDER BY type_name ASC")
-    await connection.end()
+    const now = Date.now()
+
+    // Return cached data if available and not expired
+    if (issueTypesCache && now - lastCacheTime < CACHE_TTL) {
+      return NextResponse.json({ types: issueTypesCache })
+    }
+
+    // Fetch fresh data
+    const rows = await query("SELECT * FROM issues_type ORDER BY type_name ASC")
+
+    // Update cache
+    issueTypesCache = rows as any[]
+    lastCacheTime = now
 
     return NextResponse.json({ types: rows })
   } catch (error) {
@@ -22,25 +37,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Type name is required" }, { status: 400 })
     }
 
-    const connection = await createConnection()
-
     // Check if type already exists
-    const [existing] = await connection.execute("SELECT * FROM issues_type WHERE type_name = ?", [typeName])
+    const existing = await query("SELECT * FROM issues_type WHERE type_name = ?", [typeName])
 
     if (Array.isArray(existing) && existing.length > 0) {
-      await connection.end()
       return NextResponse.json({ error: "Type already exists" }, { status: 409 })
     }
 
     // Insert new type
-    const [result] = await connection.execute("INSERT INTO issues_type (type_name) VALUES (?)", [typeName])
-
-    const insertId = (result as any).insertId
+    const result = (await query("INSERT INTO issues_type (type_name) VALUES (?)", [typeName])) as any
 
     // Get the newly created type
-    const [newType] = await connection.execute("SELECT * FROM issues_type WHERE id = ?", [insertId])
+    const newType = await query("SELECT * FROM issues_type WHERE id = ?", [result.insertId])
 
-    await connection.end()
+    // Invalidate cache
+    issueTypesCache = null
 
     return NextResponse.json({
       success: true,

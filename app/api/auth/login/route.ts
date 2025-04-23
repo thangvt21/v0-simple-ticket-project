@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { getUserByEmail, comparePasswords, generateToken } from "@/lib/auth"
+import { rateLimit } from "@/lib/rate-limit"
 
 export async function POST(request: Request) {
+  // Apply rate limiting
+  const rateLimitResponse = rateLimit(request as any, { limit: 5, windowMs: 60 * 1000 })
+  if (rateLimitResponse) return rateLimitResponse
+
   try {
     const { email, password } = await request.json()
 
@@ -34,6 +39,7 @@ export async function POST(request: Request) {
       path: "/",
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: "strict",
     })
 
     // Return user info (without password)

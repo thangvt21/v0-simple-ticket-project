@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import IssuesDashboard from "@/components/issues-dashboard"
+import { DashboardAnalytics } from "@/components/dashboard-analytics"
 
 export const metadata: Metadata = {
-  title: "Issues Dashboard",
-  description: "Manage all issues in the system",
+  title: "Issues Dashboard | Issue Tracker",
+  description: "View and manage all issues in the system",
 }
 
 export default function DashboardPage() {
@@ -16,6 +17,11 @@ export default function DashboardPage() {
           Add New Issue
         </Link>
       </div>
+
+      <div className="mb-8">
+        <DashboardAnalytics />
+      </div>
+
       <IssuesDashboard />
     </div>
   )

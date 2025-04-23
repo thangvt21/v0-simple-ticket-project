@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { ChevronDown, LogOut, UserCog, ClipboardList, Home } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -60,6 +61,8 @@ export default function Navbar() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
