@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { createConnection } from "@/lib/db"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs" // Changed from bcrypt to bcryptjs
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key" // In production, use a proper secret

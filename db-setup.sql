@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Insert default admin user (password: admin123)
+-- This hash is compatible with bcryptjs
 INSERT IGNORE INTO users (username, email, password, role) 
-VALUES ('admin', 'admin@example.com', '$2b$10$JqWf4cC7PQHg5S.fpR.5.eAx3KGXo2mxRlw1Qb.KIHRmZHEAXHSAK', 'admin');
+VALUES ('admin', 'admin@example.com', '$2a$10$JqWf4cC7PQHg5S.fpR.5.eAx3KGXo2mxRlw1Qb.KIHRmZHEAXHSAK', 'admin');
 
 -- Create the issues_type table
 CREATE TABLE IF NOT EXISTS issues_type (

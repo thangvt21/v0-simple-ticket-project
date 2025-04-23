@@ -4,6 +4,9 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Install dependencies required for native modules
+RUN apk add --no-cache python3 make g++
+
 # Copy package.json and package-lock.json
 COPY package.json package-lock.json* ./
 
@@ -45,7 +48,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD node -e "http.get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+    CMD node -e "const http = require('http'); http.get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
 
 # Start the application
 CMD ["node", "server.js"]
