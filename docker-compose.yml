@@ -9,31 +9,14 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MYSQL_HOST=mysql
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=^#0nNBvqSX^6m4w$96J4
-      - MYSQL_DATABASE=issue_tracker
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
     networks:
       - server-network
     restart: unless-stopped
-
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ^#0nNBvqSX^6m4w$96J4
-      MYSQL_DATABASE: issue_tracker
-    ports:
-      - "33066:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - server-network
 
 networks:
   server-network:
     external: true
-
-volumes:
-  mysql-data:
-
