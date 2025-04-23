@@ -1,12 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { submitIssue } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -20,27 +21,47 @@ import {
 } from "@/components/ui/dialog"
 import { PlusCircle, CheckCircle2, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/contexts/auth-context"
 
 type IssueType = {
   id: number
   type_name: string
 }
 
+type User = {
+  id: number
+  username: string
+}
+
 export default function IssueForm() {
   const { toast } = useToast()
+  const { user: currentUser } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [isLoadingTypes, setIsLoadingTypes] = useState(true)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [newTypeName, setNewTypeName] = useState("")
   const [isAddingType, setIsAddingType] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
+  const [formData, setFormData] = useState({
+    issueTitle: "",
+    issueTypeId: "",
+    timeIssued: new Date().toISOString().slice(0, 16),
+    description: "",
+    solution: "",
+    timeStart: "",
+    timeFinish: "",
+    assignedTo: "",
+  })
 
-  // Fetch issue types on component mount
+  // Fetch issue types and users on component mount
   useEffect(() => {
     fetchIssueTypes()
+    fetchUsers()
   }, [])
 
   async function fetchIssueTypes() {
@@ -61,6 +82,27 @@ export default function IssueForm() {
       })
     } finally {
       setIsLoadingTypes(false)
+    }
+  }
+
+  async function fetchUsers() {
+    try {
+      setIsLoadingUsers(true)
+      const response = await fetch("/api/users")
+      const data = await response.json()
+
+      if (data.users) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingUsers(false)
     }
   }
 
@@ -113,19 +155,53 @@ export default function IssueForm() {
     }
   }
 
-  async function handleSubmit(formData: FormData) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function handleSelectChange(name: string, value: string) {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     setIsSubmitting(true)
+
     try {
-      await submitIssue(formData)
+      const response = await fetch("/api/issues", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
 
-      // Show success dialog
-      setIsSuccess(true)
-      setResultMessage("Issue has been submitted successfully!")
-      setResultDialogOpen(true)
+      const data = await response.json()
 
-      // Reset the form
-      const form = document.getElementById("issueForm") as HTMLFormElement
-      form.reset()
+      if (response.ok) {
+        // Show success dialog
+        setIsSuccess(true)
+        setResultMessage("Issue has been submitted successfully!")
+        setResultDialogOpen(true)
+
+        // Reset the form
+        setFormData({
+          issueTitle: "",
+          issueTypeId: "",
+          timeIssued: new Date().toISOString().slice(0, 16),
+          description: "",
+          solution: "",
+          timeStart: "",
+          timeFinish: "",
+          assignedTo: "",
+        })
+      } else {
+        // Show error dialog
+        setIsSuccess(false)
+        setResultMessage(data.error || "Failed to submit issue. Please try again.")
+        setResultDialogOpen(true)
+      }
     } catch (error) {
       console.error("Error submitting issue:", error)
 
@@ -138,6 +214,21 @@ export default function IssueForm() {
     }
   }
 
+  if (!currentUser) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="mb-4">Please log in to submit an issue.</p>
+            <Button asChild>
+              <Link href="/login">Login</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <>
       <Card className="w-full max-w-2xl mx-auto">
@@ -147,11 +238,18 @@ export default function IssueForm() {
             View All Issues
           </Link>
         </CardHeader>
-        <form id="issueForm" action={handleSubmit}>
+        <form id="issueForm" onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="issueTitle">Issue Title</Label>
-              <Input id="issueTitle" name="issueTitle" placeholder="Brief description of the issue" required />
+              <Input
+                id="issueTitle"
+                name="issueTitle"
+                placeholder="Brief description of the issue"
+                value={formData.issueTitle}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -188,7 +286,7 @@ export default function IssueForm() {
                   </DialogContent>
                 </Dialog>
               </div>
-              <Select name="issueTypeId">
+              <Select value={formData.issueTypeId} onValueChange={(value) => handleSelectChange("issueTypeId", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
@@ -213,8 +311,42 @@ export default function IssueForm() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="assignedTo">Assign To</Label>
+              <Select value={formData.assignedTo} onValueChange={(value) => handleSelectChange("assignedTo", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select user to assign" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {isLoadingUsers ? (
+                    <SelectItem value="loading" disabled>
+                      Loading users...
+                    </SelectItem>
+                  ) : users.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      No users available
+                    </SelectItem>
+                  ) : (
+                    users.map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.username}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="timeIssued">Time Issued</Label>
-              <Input id="timeIssued" name="timeIssued" type="datetime-local" required />
+              <Input
+                id="timeIssued"
+                name="timeIssued"
+                type="datetime-local"
+                value={formData.timeIssued}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -224,6 +356,8 @@ export default function IssueForm() {
                 name="description"
                 placeholder="Detailed description of the issue"
                 className="min-h-[100px]"
+                value={formData.description}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -235,18 +369,32 @@ export default function IssueForm() {
                 name="solution"
                 placeholder="How was the issue resolved?"
                 className="min-h-[100px]"
+                value={formData.solution}
+                onChange={handleChange}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="timeStart">Time Start</Label>
-                <Input id="timeStart" name="timeStart" type="datetime-local" />
+                <Input
+                  id="timeStart"
+                  name="timeStart"
+                  type="datetime-local"
+                  value={formData.timeStart}
+                  onChange={handleChange}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="timeFinish">Time Finish</Label>
-                <Input id="timeFinish" name="timeFinish" type="datetime-local" />
+                <Input
+                  id="timeFinish"
+                  name="timeFinish"
+                  type="datetime-local"
+                  value={formData.timeFinish}
+                  onChange={handleChange}
+                />
               </div>
             </div>
           </CardContent>

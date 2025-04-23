@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -21,11 +23,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, AlertCircle } from "lucide-react"
+import { Pencil, Trash2, AlertCircle, Search, Filter, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
 import EditIssueForm from "./edit-issue-form"
+import { useAuth } from "@/contexts/auth-context"
 
 type Issue = {
   id: number
@@ -38,13 +42,31 @@ type Issue = {
   time_start: string | null
   time_finish: string | null
   created_at: string
+  created_by: number
+  creator_username: string
+  assigned_to: number | null
+  assignee_username: string | null
+}
+
+type IssueType = {
+  id: number
+  type_name: string
+}
+
+type User = {
+  id: number
+  username: string
 }
 
 export default function IssuesDashboard() {
   const { toast } = useToast()
   const router = useRouter()
+  const { user: currentUser, canManageIssue } = useAuth()
   const [issues, setIssues] = useState<Issue[]>([])
+  const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingFilters, setIsLoadingFilters] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -52,17 +74,80 @@ export default function IssuesDashboard() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [issueToEdit, setIssueToEdit] = useState<Issue | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [filters, setFilters] = useState({
+    search: "",
+    typeId: "",
+    assignedTo: "",
+    startDate: "",
+    endDate: "",
+  })
+  const [showFilters, setShowFilters] = useState(false)
 
   const pageSize = 10
 
   useEffect(() => {
-    fetchIssues(currentPage)
-  }, [currentPage])
+    if (!currentUser) {
+      router.push("/login")
+      return
+    }
+
+    fetchFiltersData()
+  }, [currentUser, router])
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchIssues(currentPage)
+    }
+  }, [currentPage, currentUser])
+
+  async function fetchFiltersData() {
+    try {
+      setIsLoadingFilters(true)
+
+      // Fetch issue types
+      const typesResponse = await fetch("/api/issue-types")
+      const typesData = await typesResponse.json()
+
+      if (typesData.types) {
+        setIssueTypes(typesData.types)
+      }
+
+      // Fetch users
+      const usersResponse = await fetch("/api/users")
+      const usersData = await usersResponse.json()
+
+      if (usersData.users) {
+        setUsers(usersData.users)
+      }
+    } catch (error) {
+      console.error("Failed to fetch filters data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load filters data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingFilters(false)
+    }
+  }
 
   async function fetchIssues(page: number) {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/issues?page=${page}&pageSize=${pageSize}`)
+
+      // Build query string from filters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+      })
+
+      if (filters.search) params.append("search", filters.search)
+      if (filters.typeId) params.append("typeId", filters.typeId)
+      if (filters.assignedTo) params.append("assignedTo", filters.assignedTo)
+      if (filters.startDate) params.append("startDate", filters.startDate)
+      if (filters.endDate) params.append("endDate", filters.endDate)
+
+      const response = await fetch(`/api/issues?${params.toString()}`)
       const data = await response.json()
 
       if (response.ok) {
@@ -146,8 +231,120 @@ export default function IssuesDashboard() {
     })
   }
 
+  function handleFilterChange(name: string, value: string) {
+    setFilters((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function applyFilters() {
+    setCurrentPage(1)
+    fetchIssues(1)
+  }
+
+  function resetFilters() {
+    setFilters({
+      search: "",
+      typeId: "",
+      assignedTo: "",
+      startDate: "",
+      endDate: "",
+    })
+    setCurrentPage(1)
+    fetchIssues(1)
+  }
+
   return (
     <div className="space-y-4">
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Input
+              placeholder="Search issues..."
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+              className="pl-10"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  applyFilters()
+                }
+              }}
+            />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+          <Button variant="outline" className="sm:w-auto" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="mr-2 h-4 w-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+          </Button>
+          <Button onClick={applyFilters}>Apply Filters</Button>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-md">
+            <div className="space-y-2">
+              <Label htmlFor="typeId">Issue Type</Label>
+              <Select value={filters.typeId} onValueChange={(value) => handleFilterChange("typeId", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {issueTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.type_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="assignedTo">Assigned To</Label>
+              <Select value={filters.assignedTo} onValueChange={(value) => handleFilterChange("assignedTo", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="null">Unassigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => handleFilterChange("startDate", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => handleFilterChange("endDate", e.target.value)}
+              />
+            </div>
+
+            <div className="col-span-full flex justify-end">
+              <Button variant="outline" onClick={resetFilters} className="gap-2">
+                <X className="h-4 w-4" />
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -155,6 +352,8 @@ export default function IssuesDashboard() {
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Created By</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Time Issued</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -163,13 +362,13 @@ export default function IssuesDashboard() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={8} className="text-center py-10">
                   Loading issues...
                 </TableCell>
               </TableRow>
             ) : issues.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={8} className="text-center py-10">
                   No issues found
                 </TableCell>
               </TableRow>
@@ -185,6 +384,14 @@ export default function IssuesDashboard() {
                       <span className="text-muted-foreground">None</span>
                     )}
                   </TableCell>
+                  <TableCell>{issue.creator_username}</TableCell>
+                  <TableCell>
+                    {issue.assignee_username ? (
+                      issue.assignee_username
+                    ) : (
+                      <span className="text-muted-foreground">Unassigned</span>
+                    )}
+                  </TableCell>
                   <TableCell>{formatDate(issue.time_issued)}</TableCell>
                   <TableCell>
                     {issue.time_finish ? (
@@ -197,19 +404,23 @@ export default function IssuesDashboard() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEditIssue(issue)}>
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => handleDeleteIssue(issue.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
+                      {canManageIssue(issue.created_by) && (
+                        <>
+                          <Button variant="outline" size="icon" onClick={() => handleEditIssue(issue)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleDeleteIssue(issue.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

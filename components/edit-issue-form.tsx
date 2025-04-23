@@ -20,11 +20,18 @@ type Issue = {
   solution: string | null
   time_start: string | null
   time_finish: string | null
+  created_by: number
+  assigned_to: number | null
 }
 
 type IssueType = {
   id: number
   type_name: string
+}
+
+type User = {
+  id: number
+  username: string
 }
 
 interface EditIssueFormProps {
@@ -43,13 +50,16 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
     solution: issue.solution || "",
     timeStart: issue.time_start ? issue.time_start.slice(0, 16) : "",
     timeFinish: issue.time_finish ? issue.time_finish.slice(0, 16) : "",
+    assignedTo: issue.assigned_to?.toString() || "",
   })
   const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     fetchIssueTypes()
+    fetchUsers()
   }, [])
 
   async function fetchIssueTypes() {
@@ -66,6 +76,27 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       toast({
         title: "Error",
         description: "Failed to load issue types",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function fetchUsers() {
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/users")
+      const data = await response.json()
+
+      if (data.users) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load users",
         variant: "destructive",
       })
     } finally {
@@ -100,6 +131,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
           solution: formData.solution || null,
           timeStart: formData.timeStart || null,
           timeFinish: formData.timeFinish || null,
+          assignedTo: formData.assignedTo ? Number.parseInt(formData.assignedTo) : null,
         }),
       })
 
@@ -140,10 +172,27 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
             <SelectValue placeholder="Select issue type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="-1">None</SelectItem>
+            <SelectItem value="none">None</SelectItem>
             {issueTypes.map((type) => (
               <SelectItem key={type.id} value={type.id.toString()}>
                 {type.type_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="assignedTo">Assign To</Label>
+        <Select value={formData.assignedTo} onValueChange={(value) => handleSelectChange("assignedTo", value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select user to assign" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {users.map((user) => (
+              <SelectItem key={user.id} value={user.id.toString()}>
+                {user.username}
               </SelectItem>
             ))}
           </SelectContent>
