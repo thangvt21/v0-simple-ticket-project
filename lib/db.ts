@@ -27,12 +27,18 @@ export async function query(sql: string, params: any[] = []) {
   }
 }
 
-// For backward compatibility
+// For backward compatibility - wraps the connection to use release instead of end
 export async function createConnection() {
-  try {
-    return await pool.getConnection()
-  } catch (error) {
-    console.error("Failed to get database connection:", error)
-    throw new Error("Database connection failed")
+  const connection = await pool.getConnection()
+
+  // Store the original end method
+  const originalEnd = connection.end.bind(connection)
+
+  // Override the end method to use release instead
+  connection.end = () => {
+    connection.release()
+    return Promise.resolve()
   }
+
+  return connection
 }
