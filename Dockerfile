@@ -1,5 +1,5 @@
 # Use Node.js LTS as the base image
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -16,15 +16,36 @@ COPY . .
 # Build the Next.js application
 RUN npm run build
 
-# Expose the port the app will run on
+# Production image
+FROM node:20-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Create a non-root user
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# Copy built assets from the builder stage
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Set the correct permissions
+RUN chown -R nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
+
+# Expose the port
 EXPOSE 3000
 
-# Set environment variables (these will be overridden by docker run command)
-ENV NODE_ENV=production
-ENV MYSQL_HOST=mysql-host
-ENV MYSQL_USER=mysql-user
-ENV MYSQL_PASSWORD=mysql-password
-ENV MYSQL_DATABASE=mysql-database
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD node -e "http.get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

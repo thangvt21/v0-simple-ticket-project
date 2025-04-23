@@ -1,22 +1,52 @@
 version: '3'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: issue-tracker-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-issue_tracker}
+      MYSQL_USER: ${MYSQL_USER:-issueuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-issuepassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db-setup.sql:/docker-entrypoint-initdb.d/db-setup.sql
+    networks:
+      - server-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   issue-tracker:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: issue-tracker-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MYSQL_HOST=${MYSQL_HOST}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=${MYSQL_USER:-issueuser}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-issuepassword}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-issue_tracker}
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_key}
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - server-network
-    restart: unless-stopped
+
+volumes:
+  mysql-data:
 
 networks:
   server-network:
-    external: true
+    driver: bridge
