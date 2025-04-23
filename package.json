@@ -59,13 +59,13 @@
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
     "@testing-library/dom": "latest",
-    "bcryptjs": "latest",
-    "jsonwebtoken": "latest",
     "swr": "latest",
     "crypto": "latest",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
-    "mysql2": "latest"
+    "mysql2": "latest",
+    "bcryptjs": "latest",
+    "jsonwebtoken": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { createConnection } from "@/lib/db"
+import { query } from "@/lib/db"
 import bcrypt from "bcryptjs" // Changed from bcrypt to bcryptjs
 import jwt from "jsonwebtoken"
 
@@ -23,16 +23,29 @@ export async function comparePasswords(password: string, hashedPassword: string)
 export async function createUser(username: string, email: string, password: string, role: "admin" | "user" = "user") {
   const hashedPassword = await hashPassword(password)
 
-  const connection = await createConnection()
-
   try {
-    const [result] = await connection.execute(
-      "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
-      [username, email, hashedPassword, role],
-    )
+    // Check if username already exists
+    const existingUsername = await query("SELECT id FROM users WHERE username = ?", [username])
+    if (Array.isArray(existingUsername) && existingUsername.length > 0) {
+      throw new Error("Username already exists")
+    }
 
-    return { success: true, userId: (result as any).insertId }
-  } catch (error: any) {
+    // Check if email already exists
+    const existingEmail = await query("SELECT id FROM users WHERE email = ?", [email])
+    if (Array.isArray(existingEmail) && existingEmail.length > 0) {
+      throw new Error("Email already exists")
+    }
+
+    // Insert the new user
+    const result = (await query("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)", [
+      username,
+      email,
+      hashedPassword,
+      role,
+    ])) as any
+
+    return { success: true, userId: result.insertId }
+  } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       if (error.message.includes("username")) {
         throw new Error("Username already exists")
@@ -41,43 +54,27 @@ export async function createUser(username: string, email: string, password: stri
       }
     }
     throw error
-  } finally {
-    await connection.end()
   }
 }
 
 export async function getUserByEmail(email: string) {
-  const connection = await createConnection()
+  const rows = await query("SELECT id, username, email, password, role FROM users WHERE email = ?", [email])
 
-  try {
-    const [rows] = await connection.execute("SELECT id, username, email, password, role FROM users WHERE email = ?", [
-      email,
-    ])
-
-    if (Array.isArray(rows) && rows.length > 0) {
-      return rows[0] as any
-    }
-
-    return null
-  } finally {
-    await connection.end()
+  if (Array.isArray(rows) && rows.length > 0) {
+    return rows[0] as any
   }
+
+  return null
 }
 
 export async function getUserById(id: number) {
-  const connection = await createConnection()
+  const rows = await query("SELECT id, username, email, role FROM users WHERE id = ?", [id])
 
-  try {
-    const [rows] = await connection.execute("SELECT id, username, email, role FROM users WHERE id = ?", [id])
-
-    if (Array.isArray(rows) && rows.length > 0) {
-      return rows[0] as User
-    }
-
-    return null
-  } finally {
-    await connection.end()
+  if (Array.isArray(rows) && rows.length > 0) {
+    return rows[0] as User
   }
+
+  return null
 }
 
 export function generateToken(user: { id: number; role: string }) {
