@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
         conditions.push("i.assigned_to IS NULL")
       } else if (assignedTo !== "all") {
         conditions.push("i.assigned_to = ?")
-        countParams.push(assignedTo)
-        issueParams.push(assignedTo)
+        countParams.push(Number(assignedTo))
+        issueParams.push(Number(assignedTo))
       }
     }
 
@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
     // If not admin, only show issues created by or assigned to the user
     if (!isAdmin(currentUser)) {
       conditions.push(`(i.created_by = ? OR i.assigned_to = ?)`)
-      countParams.push(currentUser.id, currentUser.id)
-      issueParams.push(currentUser.id, currentUser.id)
+      countParams.push(Number(currentUser.id), Number(currentUser.id))
+      issueParams.push(Number(currentUser.id), Number(currentUser.id))
     }
 
     // Combine all conditions
