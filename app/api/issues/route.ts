@@ -124,12 +124,12 @@ export async function GET(request: NextRequest) {
       `
 
       // Add pagination parameters
-      issueParams.push(pageSize, offset)
+      const finalParams = [...issueParams, pageSize, offset]
 
       console.log("Executing issues query:", issuesQuery)
-      console.log("Issues query params:", issueParams)
+      console.log("Issues query params:", finalParams)
 
-      const [issueRows] = await connection.execute(issuesQuery, issueParams)
+      const [issueRows] = await connection.execute(issuesQuery, finalParams)
       console.log("Issues result:", issueRows)
 
       return NextResponse.json({
