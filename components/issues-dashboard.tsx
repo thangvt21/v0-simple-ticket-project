@@ -142,6 +142,8 @@ export default function IssuesDashboard() {
     }
   }
 
+  // Update the fetchIssues function to handle errors better and provide more detailed logging
+
   async function fetchIssues(page: number) {
     try {
       setIsLoading(true)
@@ -162,12 +164,22 @@ export default function IssuesDashboard() {
       console.log("Fetching issues with params:", params.toString())
       const response = await fetch(`/api/issues?${params.toString()}`)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to fetch issues: ${response.status} ${response.statusText}`)
+      // Get the response text first for debugging
+      const responseText = await response.text()
+
+      let data
+      try {
+        // Try to parse the response as JSON
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", responseText)
+        throw new Error(`Invalid response format: ${parseError.message}`)
       }
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed with status ${response.status}`)
+      }
+
       console.log("Received issues data:", data)
 
       setIssues(data.issues || [])
@@ -180,6 +192,8 @@ export default function IssuesDashboard() {
         description: `Failed to fetch issues: ${error.message}`,
         variant: "destructive",
       })
+      // Set empty issues array to avoid undefined errors
+      setIssues([])
     } finally {
       setIsLoading(false)
     }

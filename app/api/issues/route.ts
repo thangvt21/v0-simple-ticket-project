@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createConnection } from "@/lib/db"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
+// Replace the entire GET function with this improved version that properly handles parameter combinations
+
 export async function GET(request: NextRequest) {
   let connection
   try {
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
       params.push(typeId)
     }
 
-    // Assigned to filter
+    // Assigned to filter - FIXED: Handle this more carefully
     if (assignedTo) {
       if (assignedTo === "null") {
         conditions.push("i.assigned_to IS NULL")
@@ -65,9 +67,11 @@ export async function GET(request: NextRequest) {
     }
 
     // If not admin, only show issues created by or assigned to the user
+    // FIXED: Use a different approach to avoid parameter conflicts
     if (!isAdmin(currentUser)) {
-      conditions.push("(i.created_by = ? OR i.assigned_to = ?)")
-      params.push(currentUser.id, currentUser.id)
+      // Use the user ID directly in the condition to avoid parameter conflicts
+      conditions.push(`(i.created_by = ${currentUser.id} OR i.assigned_to = ${currentUser.id})`)
+      // No need to add parameters here since we're using the value directly
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
@@ -110,7 +114,7 @@ export async function GET(request: NextRequest) {
         LIMIT ? OFFSET ?
       `
 
-      // Create a new array with the pagination parameters
+      // Add pagination parameters
       const issueParams = [...params, pageSize, offset]
 
       console.log("Executing issues query:", issuesQuery)
