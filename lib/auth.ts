@@ -78,7 +78,7 @@ export async function getUserById(id: number) {
 }
 
 export function generateToken(user: { id: number; role: string }) {
-  return jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "7d" })
+  return jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "5h" })
 }
 
 export function verifyToken(token: string) {

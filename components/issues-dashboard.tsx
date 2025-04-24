@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, AlertCircle, Search, Filter, X } from "lucide-react"
+import { Pencil, Trash2, AlertCircle, Search, Filter, X, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
 import EditIssueForm from "./edit-issue-form"
@@ -84,6 +84,7 @@ export default function IssuesDashboard() {
     endDate: "",
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const pageSize = 10
 
@@ -102,20 +103,27 @@ export default function IssuesDashboard() {
     }
   }, [currentPage, currentUser])
 
+  // Update the fetchFiltersData function to specify it's for filtering purposes
   async function fetchFiltersData() {
     try {
       setIsLoadingFilters(true)
 
       // Fetch issue types
       const typesResponse = await fetch("/api/issue-types")
+      if (!typesResponse.ok) {
+        throw new Error(`Failed to fetch issue types: ${typesResponse.status} ${typesResponse.statusText}`)
+      }
       const typesData = await typesResponse.json()
 
       if (typesData.types) {
         setIssueTypes(typesData.types)
       }
 
-      // Fetch users
-      const usersResponse = await fetch("/api/users")
+      // Fetch users with the forFiltering parameter
+      const usersResponse = await fetch("/api/users?forFiltering=true")
+      if (!usersResponse.ok) {
+        throw new Error(`Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText}`)
+      }
       const usersData = await usersResponse.json()
 
       if (usersData.users) {
@@ -123,9 +131,10 @@ export default function IssuesDashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch filters data:", error)
+      setError(`Failed to load filters data: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to load filters data",
+        description: `Failed to load filters data: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -133,9 +142,12 @@ export default function IssuesDashboard() {
     }
   }
 
+  // Update the fetchIssues function to handle errors better and provide more detailed logging
+
   async function fetchIssues(page: number) {
     try {
       setIsLoading(true)
+      setError(null)
 
       // Build query string from filters
       const params = new URLSearchParams({
@@ -149,26 +161,39 @@ export default function IssuesDashboard() {
       if (filters.startDate) params.append("startDate", filters.startDate)
       if (filters.endDate) params.append("endDate", filters.endDate)
 
+      console.log("Fetching issues with params:", params.toString())
       const response = await fetch(`/api/issues?${params.toString()}`)
-      const data = await response.json()
 
-      if (response.ok) {
-        setIssues(data.issues)
-        setTotalPages(Math.ceil(data.total / pageSize))
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to fetch issues",
-          variant: "destructive",
-        })
+      // Get the response text first for debugging
+      const responseText = await response.text()
+
+      let data
+      try {
+        // Try to parse the response as JSON
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", responseText)
+        throw new Error(`Invalid response format: ${parseError.message}`)
       }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed with status ${response.status}`)
+      }
+
+      console.log("Received issues data:", data)
+
+      setIssues(data.issues || [])
+      setTotalPages(Math.ceil(data.total / pageSize))
     } catch (error) {
       console.error("Failed to fetch issues:", error)
+      setError(`Failed to fetch issues: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to fetch issues. Please try again.",
+        description: `Failed to fetch issues: ${error.message}`,
         variant: "destructive",
       })
+      // Set empty issues array to avoid undefined errors
+      setIssues([])
     } finally {
       setIsLoading(false)
     }
@@ -201,6 +226,11 @@ export default function IssuesDashboard() {
         method: "DELETE",
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to delete issue: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
 
       if (response.ok) {
@@ -224,7 +254,7 @@ export default function IssuesDashboard() {
       console.error("Failed to delete issue:", error)
       toast({
         title: "Error",
-        description: "Failed to delete issue. Please try again.",
+        description: `Failed to delete issue: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -289,6 +319,10 @@ export default function IssuesDashboard() {
             {showFilters ? "Hide Filters" : "Show Filters"}
           </Button>
           <Button onClick={applyFilters}>Apply Filters</Button>
+          <Button variant="outline" onClick={() => fetchIssues(currentPage)} title="Refresh issues">
+            <RefreshCw className="h-4 w-4" />
+            <span className="sr-only">Refresh</span>
+          </Button>
         </div>
 
         {showFilters && (
@@ -362,6 +396,13 @@ export default function IssuesDashboard() {
         <ExportIssues issues={issues} />
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -382,7 +423,8 @@ export default function IssuesDashboard() {
             ) : issues.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10">
-                  No issues found
+                  No issues found.{" "}
+                  {currentUser ? `Try adding an issue or refreshing the page.` : "Please log in to view issues."}
                 </TableCell>
               </TableRow>
             ) : (

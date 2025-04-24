@@ -11,7 +11,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-issueuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-issuepassword}
     ports:
-      - "3306:3306"
+      - "33066:3306"
     volumes:
       - mysql-data-dev:/var/lib/mysql
       - ./db-setup.sql:/docker-entrypoint-initdb.d/db-setup.sql

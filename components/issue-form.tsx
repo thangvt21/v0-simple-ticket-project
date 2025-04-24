@@ -22,6 +22,7 @@ import {
 import { PlusCircle, CheckCircle2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
 type IssueType = {
   id: number
@@ -35,6 +36,7 @@ type User = {
 
 export default function IssueForm() {
   const { toast } = useToast()
+  const router = useRouter()
   const { user: currentUser } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
@@ -47,6 +49,7 @@ export default function IssueForm() {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     issueTitle: "",
     issueTypeId: "",
@@ -60,24 +63,38 @@ export default function IssueForm() {
 
   // Fetch issue types and users on component mount
   useEffect(() => {
-    fetchIssueTypes()
-    fetchUsers()
-  }, [])
+    if (currentUser) {
+      fetchIssueTypes()
+      fetchUsers()
+    }
+  }, [currentUser])
 
   async function fetchIssueTypes() {
     try {
       setIsLoadingTypes(true)
+      setError(null)
       const response = await fetch("/api/issue-types")
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // If unauthorized, don't show an error toast, just return
+          return
+        }
+        throw new Error(`Failed to fetch issue types: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
+      console.log("Fetched issue types:", data)
 
       if (data.types) {
         setIssueTypes(data.types)
       }
     } catch (error) {
       console.error("Failed to fetch issue types:", error)
+      setError(`Failed to load issue types: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to load issue types",
+        description: `Failed to load issue types: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -85,20 +102,33 @@ export default function IssueForm() {
     }
   }
 
+  // Update the fetchUsers function to specify it's for filtering purposes
   async function fetchUsers() {
     try {
       setIsLoadingUsers(true)
-      const response = await fetch("/api/users")
+      setError(null)
+      const response = await fetch("/api/users?forFiltering=true")
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // If unauthorized, don't show an error toast, just return
+          return
+        }
+        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
+      console.log("Fetched users:", data)
 
       if (data.users) {
         setUsers(data.users)
       }
     } catch (error) {
       console.error("Failed to fetch users:", error)
+      setError(`Failed to load users: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to load users",
+        description: `Failed to load users: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -118,6 +148,7 @@ export default function IssueForm() {
 
     try {
       setIsAddingType(true)
+      setError(null)
       const response = await fetch("/api/issue-types", {
         method: "POST",
         headers: {
@@ -126,9 +157,23 @@ export default function IssueForm() {
         body: JSON.stringify({ typeName: newTypeName }),
       })
 
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Handle unauthorized
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          })
+          return
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to add issue type: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
 
-      if (response.ok && data.success) {
+      if (data.success) {
         toast({
           title: "Success",
           description: "New issue type added",
@@ -145,9 +190,10 @@ export default function IssueForm() {
       }
     } catch (error) {
       console.error("Failed to add issue type:", error)
+      setError(`Failed to add issue type: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to add issue type",
+        description: `Failed to add issue type: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -167,8 +213,10 @@ export default function IssueForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
     try {
+      console.log("Submitting form data:", formData)
       const response = await fetch("/api/issues", {
         method: "POST",
         headers: {
@@ -177,7 +225,23 @@ export default function IssueForm() {
         body: JSON.stringify(formData),
       })
 
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Handle unauthorized
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          })
+          router.push("/login")
+          return
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to submit issue: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
+      console.log("Issue submission response:", data)
 
       if (response.ok) {
         // Show success dialog
@@ -204,10 +268,11 @@ export default function IssueForm() {
       }
     } catch (error) {
       console.error("Error submitting issue:", error)
+      setError(`Failed to submit issue: ${error.message}`)
 
       // Show error dialog
       setIsSuccess(false)
-      setResultMessage("Failed to submit issue. Please try again.")
+      setResultMessage(`Failed to submit issue: ${error.message}`)
       setResultDialogOpen(true)
     } finally {
       setIsSubmitting(false)
@@ -238,6 +303,15 @@ export default function IssueForm() {
             View All Issues
           </Link>
         </CardHeader>
+        {error && (
+          <div
+            className="mx-6 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+            role="alert"
+          >
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
         <form id="issueForm" onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -291,12 +365,13 @@ export default function IssueForm() {
                   <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
                   {isLoadingTypes ? (
                     <SelectItem value="loading" disabled>
                       Loading issue types...
                     </SelectItem>
                   ) : issueTypes.length === 0 ? (
-                    <SelectItem value="none" disabled>
+                    <SelectItem value="no-types" disabled>
                       No issue types available
                     </SelectItem>
                   ) : (
@@ -323,7 +398,7 @@ export default function IssueForm() {
                       Loading users...
                     </SelectItem>
                   ) : users.length === 0 ? (
-                    <SelectItem value="none" disabled>
+                    <SelectItem value="no-users" disabled>
                       No users available
                     </SelectItem>
                   ) : (
@@ -436,7 +511,7 @@ export default function IssueForm() {
                   className="flex-1"
                   onClick={() => {
                     setResultDialogOpen(false)
-                    window.location.href = "/dashboard"
+                    router.push("/dashboard")
                   }}
                 >
                   Go to Dashboard
