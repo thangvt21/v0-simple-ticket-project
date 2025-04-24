@@ -56,6 +56,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchIssueTypes()
@@ -65,6 +66,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
   async function fetchIssueTypes() {
     try {
       setIsLoading(true)
+      setError(null)
       const response = await fetch("/api/issue-types")
       const data = await response.json()
 
@@ -73,6 +75,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       }
     } catch (error) {
       console.error("Failed to fetch issue types:", error)
+      setError("Failed to load issue types")
       toast({
         title: "Error",
         description: "Failed to load issue types",
@@ -86,7 +89,8 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
   async function fetchUsers() {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/users")
+      setError(null)
+      const response = await fetch("/api/users?forFiltering=true")
       const data = await response.json()
 
       if (data.users) {
@@ -94,6 +98,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       }
     } catch (error) {
       console.error("Failed to fetch users:", error)
+      setError("Failed to load users")
       toast({
         title: "Error",
         description: "Failed to load users",
@@ -116,6 +121,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
     try {
       const response = await fetch(`/api/issues/${issue.id}`, {
@@ -140,6 +146,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       if (response.ok) {
         onSuccess()
       } else {
+        setError(data.error || "Failed to update issue")
         toast({
           title: "Error",
           description: data.error || "Failed to update issue",
@@ -148,6 +155,7 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       }
     } catch (error) {
       console.error("Failed to update issue:", error)
+      setError("Failed to update issue. Please try again.")
       toast({
         title: "Error",
         description: "Failed to update issue. Please try again.",
@@ -160,6 +168,13 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="issueTitle">Issue Title</Label>
         <Input id="issueTitle" name="issueTitle" value={formData.issueTitle} onChange={handleChange} required />

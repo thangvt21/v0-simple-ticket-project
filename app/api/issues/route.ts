@@ -3,6 +3,7 @@ import { createConnection } from "@/lib/db"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
+  let connection
   try {
     // Check if user is authenticated
     const currentUser = await getCurrentUser()
@@ -82,10 +83,11 @@ export async function GET(request: NextRequest) {
     `
 
     // Use direct connection for debugging
-    const connection = await createConnection()
+    connection = await createConnection()
 
     try {
       console.log("Executing count query:", countQuery)
+      console.log("Count query params:", params)
       const [countRows] = await connection.execute(countQuery, params)
       console.log("Count result:", countRows)
 
@@ -108,10 +110,13 @@ export async function GET(request: NextRequest) {
         LIMIT ? OFFSET ?
       `
 
-      console.log("Executing issues query:", issuesQuery)
-      console.log("With params:", [...params, pageSize, offset])
+      // Create a new array with the pagination parameters
+      const issueParams = [...params, pageSize, offset]
 
-      const [issueRows] = await connection.execute(issuesQuery, [...params, pageSize, offset])
+      console.log("Executing issues query:", issuesQuery)
+      console.log("Issues query params:", issueParams)
+
+      const [issueRows] = await connection.execute(issuesQuery, issueParams)
       console.log("Issues result:", issueRows)
 
       return NextResponse.json({
@@ -122,11 +127,21 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / pageSize),
       })
     } finally {
-      await connection.end()
+      if (connection) {
+        await connection.end()
+      }
     }
   } catch (error) {
     console.error("Failed to fetch issues:", error)
     return NextResponse.json({ error: `Failed to fetch issues: ${error.message}` }, { status: 500 })
+  } finally {
+    if (connection) {
+      try {
+        await connection.end()
+      } catch (err) {
+        console.error("Error closing connection:", err)
+      }
+    }
   }
 }
 
@@ -190,7 +205,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Failed to create issue: ${error.message}` }, { status: 500 })
   } finally {
     if (connection) {
-      await connection.end()
+      try {
+        await connection.end()
+      } catch (err) {
+        console.error("Error closing connection:", err)
+      }
     }
   }
 }
