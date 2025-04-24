@@ -102,11 +102,12 @@ export default function IssueForm() {
     }
   }
 
+  // Update the fetchUsers function to specify it's for filtering purposes
   async function fetchUsers() {
     try {
       setIsLoadingUsers(true)
       setError(null)
-      const response = await fetch("/api/users")
+      const response = await fetch("/api/users?forFiltering=true")
 
       if (!response.ok) {
         if (response.status === 401) {

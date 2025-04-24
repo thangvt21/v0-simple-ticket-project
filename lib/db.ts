@@ -3,7 +3,7 @@ import mysql from "mysql2/promise"
 // Create a connection pool with proper configuration
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || "localhost",
-  port: Number.parseInt(process.env.MYSQL_PORT || "33066"), // Use the new port
+  port: Number.parseInt(process.env.MYSQL_PORT || "3306"), // Default to 3306
   user: process.env.MYSQL_USER || "issueuser",
   password: process.env.MYSQL_PASSWORD || "issuepassword",
   database: process.env.MYSQL_DATABASE || "issue_tracker",

@@ -103,6 +103,7 @@ export default function IssuesDashboard() {
     }
   }, [currentPage, currentUser])
 
+  // Update the fetchFiltersData function to specify it's for filtering purposes
   async function fetchFiltersData() {
     try {
       setIsLoadingFilters(true)
@@ -118,8 +119,8 @@ export default function IssuesDashboard() {
         setIssueTypes(typesData.types)
       }
 
-      // Fetch users
-      const usersResponse = await fetch("/api/users")
+      // Fetch users with the forFiltering parameter
+      const usersResponse = await fetch("/api/users?forFiltering=true")
       if (!usersResponse.ok) {
         throw new Error(`Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText}`)
       }
