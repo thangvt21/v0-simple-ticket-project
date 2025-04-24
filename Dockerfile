@@ -12,7 +12,7 @@ RUN apk add --no-cache libc6-compat
 COPY package.json ./
 
 # Install dependencies
-RUN npm install --legacy-peer-deps
+RUN npm install --production=false
 
 # Rebuild the source code only when needed
 FROM base AS builder

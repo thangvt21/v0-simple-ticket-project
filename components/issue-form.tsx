@@ -22,6 +22,7 @@ import {
 import { PlusCircle, CheckCircle2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
 type IssueType = {
   id: number
@@ -35,6 +36,7 @@ type User = {
 
 export default function IssueForm() {
   const { toast } = useToast()
+  const router = useRouter()
   const { user: currentUser } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
@@ -60,14 +62,25 @@ export default function IssueForm() {
 
   // Fetch issue types and users on component mount
   useEffect(() => {
-    fetchIssueTypes()
-    fetchUsers()
-  }, [])
+    if (currentUser) {
+      fetchIssueTypes()
+      fetchUsers()
+    }
+  }, [currentUser])
 
   async function fetchIssueTypes() {
     try {
       setIsLoadingTypes(true)
       const response = await fetch("/api/issue-types")
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // If unauthorized, don't show an error toast, just return
+          return
+        }
+        throw new Error("Failed to fetch issue types")
+      }
+
       const data = await response.json()
 
       if (data.types) {
@@ -89,6 +102,15 @@ export default function IssueForm() {
     try {
       setIsLoadingUsers(true)
       const response = await fetch("/api/users")
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // If unauthorized, don't show an error toast, just return
+          return
+        }
+        throw new Error("Failed to fetch users")
+      }
+
       const data = await response.json()
 
       if (data.users) {
@@ -126,9 +148,22 @@ export default function IssueForm() {
         body: JSON.stringify({ typeName: newTypeName }),
       })
 
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Handle unauthorized
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          })
+          return
+        }
+        throw new Error("Failed to add issue type")
+      }
+
       const data = await response.json()
 
-      if (response.ok && data.success) {
+      if (data.success) {
         toast({
           title: "Success",
           description: "New issue type added",
@@ -176,6 +211,20 @@ export default function IssueForm() {
         },
         body: JSON.stringify(formData),
       })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Handle unauthorized
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          })
+          router.push("/login")
+          return
+        }
+        throw new Error("Failed to submit issue")
+      }
 
       const data = await response.json()
 
@@ -436,7 +485,7 @@ export default function IssueForm() {
                   className="flex-1"
                   onClick={() => {
                     setResultDialogOpen(false)
-                    window.location.href = "/dashboard"
+                    router.push("/dashboard")
                   }}
                 >
                   Go to Dashboard
