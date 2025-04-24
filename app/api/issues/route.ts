@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/db"
+import { createConnection } from "@/lib/db"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    console.log("Current user:", currentUser)
+
     const searchParams = request.nextUrl.searchParams
     const page = Number.parseInt(searchParams.get("page") || "1")
     const pageSize = Number.parseInt(searchParams.get("pageSize") || "10")
@@ -18,6 +20,8 @@ export async function GET(request: NextRequest) {
     const assignedTo = searchParams.get("assignedTo") || ""
     const startDate = searchParams.get("startDate") || ""
     const endDate = searchParams.get("endDate") || ""
+
+    console.log("Query parameters:", { page, pageSize, search, typeId, assignedTo, startDate, endDate })
 
     // Calculate offset for pagination
     const offset = (page - 1) * pageSize
@@ -67,6 +71,9 @@ export async function GET(request: NextRequest) {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
 
+    console.log("Where clause:", whereClause)
+    console.log("Query parameters:", params)
+
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total 
@@ -74,42 +81,57 @@ export async function GET(request: NextRequest) {
       ${whereClause}
     `
 
-    const countResult = (await query(countQuery, params)) as any[]
-    const total = countResult.length > 0 ? countResult[0].total : 0
+    // Use direct connection for debugging
+    const connection = await createConnection()
 
-    // Get issues with pagination and join with issue types and users
-    const issuesQuery = `
-      SELECT 
-        i.*, 
-        it.type_name,
-        creator.username as creator_username,
-        assignee.username as assignee_username
-      FROM issues i 
-      LEFT JOIN issues_type it ON i.issue_type_id = it.id
-      LEFT JOIN users creator ON i.created_by = creator.id
-      LEFT JOIN users assignee ON i.assigned_to = assignee.id
-      ${whereClause}
-      ORDER BY i.created_at DESC 
-      LIMIT ? OFFSET ?
-    `
+    try {
+      console.log("Executing count query:", countQuery)
+      const [countRows] = await connection.execute(countQuery, params)
+      console.log("Count result:", countRows)
 
-    // Make sure to convert pageSize and offset to numbers
-    const issues = await query(issuesQuery, [...params, Number(pageSize), Number(offset)])
+      const total = Array.isArray(countRows) && countRows.length > 0 ? (countRows[0] as any).total : 0
+      console.log("Total issues:", total)
 
-    return NextResponse.json({
-      issues,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    })
+      // Get issues with pagination and join with issue types and users
+      const issuesQuery = `
+        SELECT 
+          i.*, 
+          it.type_name,
+          creator.username as creator_username,
+          assignee.username as assignee_username
+        FROM issues i 
+        LEFT JOIN issues_type it ON i.issue_type_id = it.id
+        LEFT JOIN users creator ON i.created_by = creator.id
+        LEFT JOIN users assignee ON i.assigned_to = assignee.id
+        ${whereClause}
+        ORDER BY i.created_at DESC 
+        LIMIT ? OFFSET ?
+      `
+
+      console.log("Executing issues query:", issuesQuery)
+      console.log("With params:", [...params, pageSize, offset])
+
+      const [issueRows] = await connection.execute(issuesQuery, [...params, pageSize, offset])
+      console.log("Issues result:", issueRows)
+
+      return NextResponse.json({
+        issues: issueRows,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      })
+    } finally {
+      await connection.end()
+    }
   } catch (error) {
     console.error("Failed to fetch issues:", error)
-    return NextResponse.json({ error: "Failed to fetch issues" }, { status: 500 })
+    return NextResponse.json({ error: `Failed to fetch issues: ${error.message}` }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
+  let connection
   try {
     // Check if user is authenticated
     const currentUser = await getCurrentUser()
@@ -120,13 +142,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { issueTitle, issueTypeId, timeIssued, description, solution, timeStart, timeFinish, assignedTo } = body
 
+    console.log("Creating issue with data:", body)
+    console.log("Current user:", currentUser)
+
     // Validate required fields
     if (!issueTitle || !timeIssued || !description) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    // Get a connection from the pool
+    connection = await createConnection()
+
     // Insert the issue
-    const result = (await query(
+    const [result] = await connection.execute(
       `INSERT INTO issues (
         issue_title,
         issue_type_id, 
@@ -149,14 +177,20 @@ export async function POST(request: NextRequest) {
         currentUser.id,
         assignedTo === "unassigned" ? null : assignedTo || null,
       ],
-    )) as any
+    )
+
+    console.log("Insert result:", result)
 
     return NextResponse.json({
       success: true,
-      issueId: result.insertId,
+      issueId: (result as any).insertId,
     })
   } catch (error) {
     console.error("Failed to create issue:", error)
-    return NextResponse.json({ error: "Failed to create issue" }, { status: 500 })
+    return NextResponse.json({ error: `Failed to create issue: ${error.message}` }, { status: 500 })
+  } finally {
+    if (connection) {
+      await connection.end()
+    }
   }
 }

@@ -49,6 +49,7 @@ export default function IssueForm() {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [resultMessage, setResultMessage] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     issueTitle: "",
     issueTypeId: "",
@@ -71,6 +72,7 @@ export default function IssueForm() {
   async function fetchIssueTypes() {
     try {
       setIsLoadingTypes(true)
+      setError(null)
       const response = await fetch("/api/issue-types")
 
       if (!response.ok) {
@@ -78,19 +80,21 @@ export default function IssueForm() {
           // If unauthorized, don't show an error toast, just return
           return
         }
-        throw new Error("Failed to fetch issue types")
+        throw new Error(`Failed to fetch issue types: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log("Fetched issue types:", data)
 
       if (data.types) {
         setIssueTypes(data.types)
       }
     } catch (error) {
       console.error("Failed to fetch issue types:", error)
+      setError(`Failed to load issue types: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to load issue types",
+        description: `Failed to load issue types: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -101,6 +105,7 @@ export default function IssueForm() {
   async function fetchUsers() {
     try {
       setIsLoadingUsers(true)
+      setError(null)
       const response = await fetch("/api/users")
 
       if (!response.ok) {
@@ -108,19 +113,21 @@ export default function IssueForm() {
           // If unauthorized, don't show an error toast, just return
           return
         }
-        throw new Error("Failed to fetch users")
+        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log("Fetched users:", data)
 
       if (data.users) {
         setUsers(data.users)
       }
     } catch (error) {
       console.error("Failed to fetch users:", error)
+      setError(`Failed to load users: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to load users",
+        description: `Failed to load users: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -140,6 +147,7 @@ export default function IssueForm() {
 
     try {
       setIsAddingType(true)
+      setError(null)
       const response = await fetch("/api/issue-types", {
         method: "POST",
         headers: {
@@ -158,7 +166,8 @@ export default function IssueForm() {
           })
           return
         }
-        throw new Error("Failed to add issue type")
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to add issue type: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -180,9 +189,10 @@ export default function IssueForm() {
       }
     } catch (error) {
       console.error("Failed to add issue type:", error)
+      setError(`Failed to add issue type: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to add issue type",
+        description: `Failed to add issue type: ${error.message}`,
         variant: "destructive",
       })
     } finally {
@@ -202,8 +212,10 @@ export default function IssueForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
     try {
+      console.log("Submitting form data:", formData)
       const response = await fetch("/api/issues", {
         method: "POST",
         headers: {
@@ -223,10 +235,12 @@ export default function IssueForm() {
           router.push("/login")
           return
         }
-        throw new Error("Failed to submit issue")
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to submit issue: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log("Issue submission response:", data)
 
       if (response.ok) {
         // Show success dialog
@@ -253,10 +267,11 @@ export default function IssueForm() {
       }
     } catch (error) {
       console.error("Error submitting issue:", error)
+      setError(`Failed to submit issue: ${error.message}`)
 
       // Show error dialog
       setIsSuccess(false)
-      setResultMessage("Failed to submit issue. Please try again.")
+      setResultMessage(`Failed to submit issue: ${error.message}`)
       setResultDialogOpen(true)
     } finally {
       setIsSubmitting(false)
@@ -287,6 +302,15 @@ export default function IssueForm() {
             View All Issues
           </Link>
         </CardHeader>
+        {error && (
+          <div
+            className="mx-6 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+            role="alert"
+          >
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
         <form id="issueForm" onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">

@@ -63,9 +63,9 @@
     "crypto": "latest",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
-    "mysql2": "latest",
     "bcryptjs": "latest",
-    "jsonwebtoken": "latest"
+    "jsonwebtoken": "latest",
+    "mysql2": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
