@@ -22,3 +22,7 @@ export function formatDate(dateString: string): string {
     return dateString
   }
 }
+
+export function isAdmin(user: any): boolean {
+  return user?.role === "admin"
+}

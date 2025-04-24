@@ -64,31 +64,31 @@ export function DashboardAnalytics() {
   }
 
   // Mock data for demonstration
-  const mockData = {
-    issuesByType: [
-      { name: "Bug", value: 12 },
-      { name: "Feature Request", value: 8 },
-      { name: "Technical Issue", value: 15 },
-      { name: "Customer Support", value: 7 },
-      { name: "Documentation", value: 3 },
-    ],
-    issuesByStatus: [
-      { name: "Open", value: 20 },
-      { name: "In Progress", value: 15 },
-      { name: "Completed", value: 10 },
-    ],
-    issuesByMonth: [
-      { name: "Jan", count: 5 },
-      { name: "Feb", count: 8 },
-      { name: "Mar", count: 12 },
-      { name: "Apr", count: 7 },
-      { name: "May", count: 10 },
-      { name: "Jun", count: 15 },
-    ],
-  }
+  // const mockData = {
+  //   issuesByType: [
+  //     { name: "Bug", value: 12 },
+  //     { name: "Feature Request", value: 8 },
+  //     { name: "Technical Issue", value: 15 },
+  //     { name: "Customer Support", value: 7 },
+  //     { name: "Documentation", value: 3 },
+  //   ],
+  //   issuesByStatus: [
+  //     { name: "Open", value: 20 },
+  //     { name: "In Progress", value: 15 },
+  //     { name: "Completed", value: 10 },
+  //   ],
+  //   issuesByMonth: [
+  //     { name: "Jan", count: 5 },
+  //     { name: "Feb", count: 8 },
+  //     { name: "Mar", count: 12 },
+  //     { name: "Apr", count: 7 },
+  //     { name: "May", count: 10 },
+  //     { name: "Jun", count: 15 },
+  //   ],
+  // }
 
   // Use mock data for now
-  const displayData = mockData
+  const displayData = data
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
 

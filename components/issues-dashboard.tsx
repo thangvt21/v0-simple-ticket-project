@@ -100,7 +100,7 @@ export default function IssuesDashboard() {
     if (currentUser) {
       fetchIssues(currentPage)
     }
-  }, [currentPage, currentUser])
+  }, [currentPage, currentUser, router.asPath]) // Add router.asPath as a dependency
 
   async function fetchFiltersData() {
     try {

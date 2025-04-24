@@ -58,7 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Check if user is already logged in
     loadUser()
-  }, [])
+
+    // Add event listener for storage changes (for multi-tab support)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "logout") {
+        setUser(null)
+        router.push("/login")
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+    }
+  }, [router])
 
   async function login(email: string, password: string) {
     setIsLoading(true)
@@ -115,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
       })
       setUser(null)
+      // Trigger logout in other tabs
+      localStorage.setItem("logout", Date.now().toString())
       router.push("/login")
     } finally {
       setIsLoading(false)

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { query } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
+import { isAdmin } from "@/lib/utils"
 
 export async function GET() {
   try {
@@ -10,11 +11,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Build the WHERE clause based on user role
+    const userFilter = !isAdmin(currentUser)
+      ? `WHERE i.created_by = ${currentUser.id} OR i.assigned_to = ${currentUser.id}`
+      : ""
+
     // Get issues by type
     const issuesByType = await query(`
       SELECT it.type_name as name, COUNT(i.id) as value
       FROM issues_type it
       LEFT JOIN issues i ON it.id = i.issue_type_id
+      ${userFilter}
       GROUP BY it.id, it.type_name
       ORDER BY value DESC
     `)
@@ -29,6 +36,7 @@ export async function GET() {
         END as name,
         COUNT(id) as value
       FROM issues
+      ${userFilter}
       GROUP BY 
         CASE
           WHEN time_finish IS NOT NULL THEN 'Completed'
@@ -50,6 +58,7 @@ export async function GET() {
         COUNT(id) as count
       FROM issues
       WHERE time_issued >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      ${userFilter ? "AND " + userFilter.substring(6) : ""}
       GROUP BY DATE_FORMAT(time_issued, '%Y-%m'), DATE_FORMAT(time_issued, '%b')
       ORDER BY MIN(time_issued)
     `)
