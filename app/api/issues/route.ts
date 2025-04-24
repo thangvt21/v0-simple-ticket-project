@@ -181,6 +181,10 @@ export async function POST(request: NextRequest) {
     // Get a connection from the pool
     connection = await createConnection()
 
+    // Handle the special values for issueTypeId and assignedTo
+    const finalIssueTypeId = issueTypeId === "none" ? null : issueTypeId || null
+    const finalAssignedTo = assignedTo === "unassigned" ? null : assignedTo || null
+
     // Insert the issue
     const [result] = await connection.execute(
       `INSERT INTO issues (
@@ -196,14 +200,14 @@ export async function POST(request: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         issueTitle,
-        issueTypeId || null,
+        finalIssueTypeId,
         timeIssued,
         description,
         solution || null,
         timeStart || null,
         timeFinish || null,
         currentUser.id,
-        assignedTo === "unassigned" ? null : assignedTo || null,
+        finalAssignedTo,
       ],
     )
 

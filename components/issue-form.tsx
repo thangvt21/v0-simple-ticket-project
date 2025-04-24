@@ -365,13 +365,13 @@ export default function IssueForm() {
                   <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {isLoadingTypes ? (
                     <SelectItem value="loading" disabled>
                       Loading issue types...
                     </SelectItem>
                   ) : issueTypes.length === 0 ? (
-                    <SelectItem value="none" disabled>
+                    <SelectItem value="no-types" disabled>
                       No issue types available
                     </SelectItem>
                   ) : (
@@ -398,7 +398,7 @@ export default function IssueForm() {
                       Loading users...
                     </SelectItem>
                   ) : users.length === 0 ? (
-                    <SelectItem value="none" disabled>
+                    <SelectItem value="no-users" disabled>
                       No users available
                     </SelectItem>
                   ) : (
