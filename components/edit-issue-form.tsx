@@ -124,6 +124,10 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
     setError(null)
 
     try {
+      // Fix the issue with empty values for issue type and assigned user
+      const issueTypeId = formData.issueTypeId === "none" ? null : formData.issueTypeId || null
+      const assignedTo = formData.assignedTo === "unassigned" ? null : formData.assignedTo || null
+
       const response = await fetch(`/api/issues/${issue.id}`, {
         method: "PUT",
         headers: {
@@ -131,15 +135,29 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
         },
         body: JSON.stringify({
           issueTitle: formData.issueTitle,
-          issueTypeId: formData.issueTypeId ? Number.parseInt(formData.issueTypeId) : null,
+          issueTypeId: issueTypeId ? Number.parseInt(issueTypeId) : null,
           timeIssued: formData.timeIssued,
           description: formData.description,
           solution: formData.solution || null,
           timeStart: formData.timeStart || null,
           timeFinish: formData.timeFinish || null,
-          assignedTo: formData.assignedTo ? Number.parseInt(formData.assignedTo) : null,
+          assignedTo: assignedTo ? Number.parseInt(assignedTo) : null,
         }),
       })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = "Failed to update issue"
+
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          errorMessage = `${errorMessage}: ${errorText}`
+        }
+
+        throw new Error(errorMessage)
+      }
 
       const data = await response.json()
 
@@ -155,10 +173,10 @@ export default function EditIssueForm({ issue, onSuccess, onCancel }: EditIssueF
       }
     } catch (error) {
       console.error("Failed to update issue:", error)
-      setError("Failed to update issue. Please try again.")
+      setError(`Failed to update issue: ${error.message}`)
       toast({
         title: "Error",
-        description: "Failed to update issue. Please try again.",
+        description: `Failed to update issue: ${error.message}`,
         variant: "destructive",
       })
     } finally {

@@ -365,6 +365,7 @@ export default function IssueForm() {
                   <SelectValue placeholder="Select issue type" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">None</SelectItem>
                   {isLoadingTypes ? (
                     <SelectItem value="loading" disabled>
                       Loading issue types...

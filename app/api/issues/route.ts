@@ -2,10 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createConnection } from "@/lib/db"
 import { getCurrentUser, isAdmin } from "@/lib/auth"
 
-// Replace the entire GET function with this improved version that properly handles parameter combinations
-
 export async function GET(request: NextRequest) {
-  let connection
+  let connection = null
   try {
     // Check if user is authenticated
     const currentUser = await getCurrentUser()
@@ -30,54 +28,66 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * pageSize
 
     // Build query conditions
+    let whereClause = ""
+    const countParams = []
+    const issueParams = []
+
+    // Start building the WHERE clause
     const conditions = []
-    const params = []
 
     // Search condition
     if (search) {
       conditions.push("(i.issue_title LIKE ? OR i.description LIKE ?)")
-      params.push(`%${search}%`, `%${search}%`)
+      countParams.push(`%${search}%`, `%${search}%`)
+      issueParams.push(`%${search}%`, `%${search}%`)
     }
 
     // Type filter
     if (typeId && typeId !== "all") {
       conditions.push("i.issue_type_id = ?")
-      params.push(typeId)
+      countParams.push(typeId)
+      issueParams.push(typeId)
     }
 
-    // Assigned to filter - FIXED: Handle this more carefully
+    // Assigned to filter
     if (assignedTo) {
       if (assignedTo === "null") {
         conditions.push("i.assigned_to IS NULL")
       } else if (assignedTo !== "all") {
         conditions.push("i.assigned_to = ?")
-        params.push(assignedTo)
+        countParams.push(assignedTo)
+        issueParams.push(assignedTo)
       }
     }
 
     // Date range filter
     if (startDate) {
       conditions.push("i.time_issued >= ?")
-      params.push(startDate)
+      countParams.push(startDate)
+      issueParams.push(startDate)
     }
 
     if (endDate) {
       conditions.push("i.time_issued <= ?")
-      params.push(endDate)
+      countParams.push(endDate)
+      issueParams.push(endDate)
     }
 
     // If not admin, only show issues created by or assigned to the user
-    // FIXED: Use a different approach to avoid parameter conflicts
     if (!isAdmin(currentUser)) {
-      // Use the user ID directly in the condition to avoid parameter conflicts
-      conditions.push(`(i.created_by = ${currentUser.id} OR i.assigned_to = ${currentUser.id})`)
-      // No need to add parameters here since we're using the value directly
+      conditions.push(`(i.created_by = ? OR i.assigned_to = ?)`)
+      countParams.push(currentUser.id, currentUser.id)
+      issueParams.push(currentUser.id, currentUser.id)
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
+    // Combine all conditions
+    if (conditions.length > 0) {
+      whereClause = `WHERE ${conditions.join(" AND ")}`
+    }
 
     console.log("Where clause:", whereClause)
-    console.log("Query parameters:", params)
+    console.log("Count params:", countParams)
+    console.log("Issue params:", issueParams)
 
     // Get total count for pagination
     const countQuery = `
@@ -91,8 +101,7 @@ export async function GET(request: NextRequest) {
 
     try {
       console.log("Executing count query:", countQuery)
-      console.log("Count query params:", params)
-      const [countRows] = await connection.execute(countQuery, params)
+      const [countRows] = await connection.execute(countQuery, countParams)
       console.log("Count result:", countRows)
 
       const total = Array.isArray(countRows) && countRows.length > 0 ? (countRows[0] as any).total : 0
@@ -115,7 +124,7 @@ export async function GET(request: NextRequest) {
       `
 
       // Add pagination parameters
-      const issueParams = [...params, pageSize, offset]
+      issueParams.push(pageSize, offset)
 
       console.log("Executing issues query:", issuesQuery)
       console.log("Issues query params:", issueParams)
@@ -150,7 +159,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let connection
+  let connection = null
   try {
     // Check if user is authenticated
     const currentUser = await getCurrentUser()
