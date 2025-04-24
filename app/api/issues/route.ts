@@ -124,21 +124,27 @@ export async function GET(request: NextRequest) {
       `
 
       // Add pagination parameters
-      const finalParams = [...issueParams, pageSize, offset]
+      const finalParams = [...issueParams, Number(pageSize), Number(offset)]
 
       console.log("Executing issues query:", issuesQuery)
       console.log("Issues query params:", finalParams)
 
-      const [issueRows] = await connection.execute(issuesQuery, finalParams)
-      console.log("Issues result:", issueRows)
+      // Use a new connection for the issues query
+      const issuesConnection = await createConnection()
+      try {
+        const [issueRows] = await issuesConnection.execute(issuesQuery, finalParams)
+        console.log("Issues result:", issueRows)
 
-      return NextResponse.json({
-        issues: issueRows,
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      })
+        return NextResponse.json({
+          issues: issueRows,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize),
+        })
+      } finally {
+        await issuesConnection.end()
+      }
     } finally {
       if (connection) {
         await connection.end()
@@ -147,14 +153,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Failed to fetch issues:", error)
     return NextResponse.json({ error: `Failed to fetch issues: ${error.message}` }, { status: 500 })
-  } finally {
-    if (connection) {
-      try {
-        await connection.end()
-      } catch (err) {
-        console.error("Error closing connection:", err)
-      }
-    }
   }
 }
 
