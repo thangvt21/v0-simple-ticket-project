@@ -15,7 +15,7 @@ export async function GET() {
       SELECT it.type_name as name, COUNT(i.id) as value
       FROM issues_type it
       LEFT JOIN issues i ON it.id = i.issue_type_id
-      GROUP BY it.id
+      GROUP BY it.id, it.type_name
       ORDER BY value DESC
     `)
 
@@ -29,7 +29,12 @@ export async function GET() {
         END as name,
         COUNT(id) as value
       FROM issues
-      GROUP BY name
+      GROUP BY 
+        CASE
+          WHEN time_finish IS NOT NULL THEN 'Completed'
+          WHEN time_start IS NOT NULL THEN 'In Progress'
+          ELSE 'Open'
+        END
       ORDER BY 
         CASE name
           WHEN 'Open' THEN 1
@@ -45,8 +50,8 @@ export async function GET() {
         COUNT(id) as count
       FROM issues
       WHERE time_issued >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-      GROUP BY DATE_FORMAT(time_issued, '%Y-%m')
-      ORDER BY time_issued
+      GROUP BY DATE_FORMAT(time_issued, '%Y-%m'), DATE_FORMAT(time_issued, '%b')
+      ORDER BY MIN(time_issued)
     `)
 
     return NextResponse.json({

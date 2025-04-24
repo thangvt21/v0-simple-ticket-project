@@ -18,6 +18,7 @@ type AuthContextType = {
   logout: () => Promise<void>
   isAdmin: () => boolean
   canManageIssue: (creatorId: number) => boolean
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -27,22 +28,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
+  // Function to load user data
+  async function loadUser() {
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/auth/me")
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        return true
+      } else {
+        setUser(null)
+        return false
+      }
+    } catch (error) {
+      console.error("Failed to load user:", error)
+      setUser(null)
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Function to refresh user data
+  async function refreshUser() {
+    return loadUser()
+  }
+
   useEffect(() => {
     // Check if user is already logged in
-    async function loadUser() {
-      try {
-        const response = await fetch("/api/auth/me")
-        if (response.ok) {
-          const data = await response.json()
-          setUser(data.user)
-        }
-      } catch (error) {
-        console.error("Failed to load user:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     loadUser()
   }, [])
 
@@ -126,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isAdmin,
         canManageIssue,
+        refreshUser,
       }}
     >
       {children}

@@ -93,7 +93,8 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?
     `
 
-    const issues = await query(issuesQuery, [...params, pageSize, offset])
+    // Make sure to convert pageSize and offset to numbers
+    const issues = await query(issuesQuery, [...params, Number(pageSize), Number(offset)])
 
     return NextResponse.json({
       issues,
@@ -108,7 +109,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Update the POST method similarly
 export async function POST(request: NextRequest) {
   try {
     // Check if user is authenticated
